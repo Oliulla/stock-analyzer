@@ -8,19 +8,7 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import subprocess
-import time  # Import the time module for time-related functions
-import argparse
-
-def main(stock_symbol):
-    # Your main logic goes here
-    print(f"Fetching and processing data for {stock_symbol}")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Stock prediction script.")
-    parser.add_argument('stock_symbol', type=str, help="Stock symbol to predict")
-    args = parser.parse_args()
-
-    main(args.stock_symbol)
+import time
 
 # Define file paths
 DATA_FETCHER_PATH = "../data-fetcher/stock_data.json"
@@ -52,69 +40,74 @@ def is_data_updated():
         return False
     return True
 
-# Check if data is updated; if not, fetch new data
-if not is_data_updated():
-    fetch_stock_data()
+# Function to perform stock prediction
+def perform_prediction(stock_symbol: str, stock_price: float):
+    # Simulate past stock prices (for demo, we generate synthetic data)
+    np.random.seed(42)
+    days = np.array(range(1, 101)).reshape(-1, 1)  # Days 1 to 100
+    prices = stock_price + np.random.normal(0, 5, size=(100,))  # Simulated prices
 
-# Load stock data
-with open(DATA_FETCHER_PATH, "r") as file:
-    data = json.load(file)
+    # Convert to DataFrame
+    df = pd.DataFrame({"Day": days.flatten(), "Price": prices})
 
-# Extract stock data
-try:
-    quote = data["Global Quote"]
-    stock_symbol = quote["01. symbol"]
-    stock_price = float(quote["05. price"])
-except KeyError:
-    print("Error: Invalid data format in stock_data.json")
-    exit()
+    # Train a simple Linear Regression model
+    X = df[["Day"]]
+    y = df["Price"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Simulate past stock prices (for demo, we generate synthetic data)
-np.random.seed(42)
-days = np.array(range(1, 101)).reshape(-1, 1)  # Days 1 to 100
-prices = stock_price + np.random.normal(0, 5, size=(100,))  # Simulated prices
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-# Convert to DataFrame
-df = pd.DataFrame({"Day": days.flatten(), "Price": prices})
+    # Predict future stock price for day 101
+    future_day = np.array([[101]])
+    future_day_df = pd.DataFrame(future_day, columns=["Day"])
+    predicted_price = model.predict(future_day_df)[0]
 
-# Train a simple Linear Regression model
-X = df[["Day"]]
-y = df["Price"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Plot actual vs predicted prices
+    plt.figure(figsize=(8, 5))
+    plt.scatter(df["Day"], df["Price"], label="Actual Prices", color="blue")
+    plt.plot(df["Day"], model.predict(X), label="Predicted Prices", color="red", linestyle="dashed")
+    plt.axvline(x=101, color="green", linestyle="dotted", label="Prediction for Day 101")
+    plt.xlabel("Days")
+    plt.ylabel("Stock Price")
+    plt.title(f"Stock Price Prediction for {stock_symbol}")
+    plt.legend()
+    plt.savefig("stock_prediction.png")  # Saves the plot as an image
+    print("Prediction chart saved as stock_prediction.png")
 
-model = LinearRegression()
-model.fit(X_train, y_train)
+    # Save the prediction result to a CSV file
+    result_data = {
+        'Date': pd.to_datetime('today').strftime('%Y-%m-%d'),
+        'Stock Symbol': stock_symbol,
+        'Latest Price': stock_price,
+        'Predicted Price': predicted_price
+    }
 
-# Predict future stock price for day 101
-future_day = np.array([[101]])
-future_day_df = pd.DataFrame(future_day, columns=["Day"])
-predicted_price = model.predict(future_day_df)[0]
+    df_results = pd.DataFrame([result_data])
+    df_results.to_csv("predictions.csv", mode='a', header=False, index=False)
+    print("Prediction saved to predictions.csv")
 
-print(f"\nStock Symbol: {stock_symbol}")
-print(f"Latest Price: ${stock_price:.2f}")
-print(f"Predicted Price for Day 101: ${predicted_price:.2f}\n")
+    return predicted_price
 
-# Plot actual vs predicted prices
-plt.figure(figsize=(8, 5))
-plt.scatter(df["Day"], df["Price"], label="Actual Prices", color="blue")
-plt.plot(df["Day"], model.predict(X), label="Predicted Prices", color="red", linestyle="dashed")
-plt.axvline(x=101, color="green", linestyle="dotted", label="Prediction for Day 101")
-plt.xlabel("Days")
-plt.ylabel("Stock Price")
-plt.title(f"Stock Price Prediction for {stock_symbol}")
-plt.legend()
-plt.savefig("stock_prediction.png")  # Saves the plot as an image
-print("Prediction chart saved as stock_prediction.png")
+# Main prediction logic to be used by the API
+def get_stock_prediction(stock_symbol: str):
+    # Fetch new stock data if necessary
+    if not is_data_updated():
+        fetch_stock_data()
 
+    # Load stock data from the JSON file
+    with open(DATA_FETCHER_PATH, "r") as file:
+        data = json.load(file)
 
-# Save the prediction result to a CSV file
-result_data = {
-    'Date': pd.to_datetime('today').strftime('%Y-%m-%d'),
-    'Stock Symbol': stock_symbol,
-    'Latest Price': stock_price,
-    'Predicted Price': predicted_price
-}
-
-df_results = pd.DataFrame([result_data])
-df_results.to_csv("predictions.csv", mode='a', header=False, index=False)
-print("Prediction saved to predictions.csv")
+    # Extract stock data
+    try:
+        quote = data["Global Quote"]
+        stock_symbol = quote["01. symbol"]
+        stock_price = float(quote["05. price"])
+    except KeyError:
+        return {"error": "Invalid data format in stock_data.json"}
+    
+    # Perform prediction using the extracted stock symbol and price
+    predicted_price = perform_prediction(stock_symbol, stock_price)
+    
+    return {"stock_symbol": stock_symbol, "predicted_price": predicted_price}
