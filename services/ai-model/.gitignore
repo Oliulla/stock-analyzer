@@ -1,0 +1,22 @@
+# Ignore Python virtual environments
+venv/
+*/venv/
+
+# Ignore compiled Python files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Ignore log files
+*.log
+
+# Ignore package manager lock files
+package-lock.json
+yarn.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore system files
+.DS_Store
+Thumbs.db
