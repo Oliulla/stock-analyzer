@@ -5,15 +5,43 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+import subprocess
 
 # Define file paths
 DATA_FETCHER_PATH = "../data-fetcher/stock_data.json"
+FETCHER_LOG_PATH = "../data-fetcher/fetcher.log"
+
+# Fetch the latest stock data using the C fetcher program
+def fetch_stock_data():
+    try:
+        print("Fetching live stock data...")
+        subprocess.run(["./data-fetcher/fetcher"], check=True)
+        print("Stock data fetched successfully.")
+    except subprocess.CalledProcessError:
+        print("Error occurred while fetching stock data.")
+        exit(1)
+
+# Check if the stock data file exists and is updated
+def is_data_updated():
+    if not os.path.exists(DATA_FETCHER_PATH):
+        print(f"Error: {DATA_FETCHER_PATH} not found!")
+        return False
+
+    # Check the last modification time of stock data
+    last_modified_time = os.path.getmtime(DATA_FETCHER_PATH)
+    current_time = os.time()
+
+    # Consider the data as outdated if it hasn't been updated for more than a day (24 hours)
+    if current_time - last_modified_time > 86400:
+        print("Stock data is outdated, updating...")
+        return False
+    return True
+
+# Check if data is updated; if not, fetch new data
+if not is_data_updated():
+    fetch_stock_data()
 
 # Load stock data
-if not os.path.exists(DATA_FETCHER_PATH):
-    print(f"Error: {DATA_FETCHER_PATH} not found!")
-    exit()
-
 with open(DATA_FETCHER_PATH, "r") as file:
     data = json.load(file)
 
@@ -47,7 +75,6 @@ future_day = np.array([[101]])
 future_day_df = pd.DataFrame(future_day, columns=["Day"])
 predicted_price = model.predict(future_day_df)[0]
 
-
 print(f"\nStock Symbol: {stock_symbol}")
 print(f"Latest Price: ${stock_price:.2f}")
 print(f"Predicted Price for Day 101: ${predicted_price:.2f}\n")
@@ -63,4 +90,3 @@ plt.title(f"Stock Price Prediction for {stock_symbol}")
 plt.legend()
 plt.savefig("stock_prediction.png")  # Saves the plot as an image
 print("Prediction chart saved as stock_prediction.png")
-
