@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import json
 import pandas as pd
@@ -6,6 +8,19 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import subprocess
+import time  # Import the time module for time-related functions
+import argparse
+
+def main(stock_symbol):
+    # Your main logic goes here
+    print(f"Fetching and processing data for {stock_symbol}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Stock prediction script.")
+    parser.add_argument('stock_symbol', type=str, help="Stock symbol to predict")
+    args = parser.parse_args()
+
+    main(args.stock_symbol)
 
 # Define file paths
 DATA_FETCHER_PATH = "../data-fetcher/stock_data.json"
@@ -29,7 +44,7 @@ def is_data_updated():
 
     # Check the last modification time of stock data
     last_modified_time = os.path.getmtime(DATA_FETCHER_PATH)
-    current_time = os.time()
+    current_time = time.time()  # Use time.time() instead of os.time()
 
     # Consider the data as outdated if it hasn't been updated for more than a day (24 hours)
     if current_time - last_modified_time > 86400:
@@ -90,3 +105,16 @@ plt.title(f"Stock Price Prediction for {stock_symbol}")
 plt.legend()
 plt.savefig("stock_prediction.png")  # Saves the plot as an image
 print("Prediction chart saved as stock_prediction.png")
+
+
+# Save the prediction result to a CSV file
+result_data = {
+    'Date': pd.to_datetime('today').strftime('%Y-%m-%d'),
+    'Stock Symbol': stock_symbol,
+    'Latest Price': stock_price,
+    'Predicted Price': predicted_price
+}
+
+df_results = pd.DataFrame([result_data])
+df_results.to_csv("predictions.csv", mode='a', header=False, index=False)
+print("Prediction saved to predictions.csv")
